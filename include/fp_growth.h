@@ -32,6 +32,7 @@ std::list<std::vector<std::string>> DataSort(std::vector<std::vector<std::string
 //search the next node whether in the children
 bool SearchChild(std::map<std::string,FpNode*>,FpNode*);
 
+void SingleDataSort();
 void DeleteFpTree(FpNode*);
 void DelteHeadTable(std::vector<HeadNode*>);
 FpNode* InitFpNode(std::string&,FpNode*);
