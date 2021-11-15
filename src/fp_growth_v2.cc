@@ -4,9 +4,25 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <iostream>
 #include <string>
 #include <vector>
 
+
+void show_list(std::list<std::string>& data){
+    for (auto item=data.begin();item!=data.end();item++){
+        std::cout << *item <<" ";
+    }
+    std::cout << std::endl;
+}
+
+
+void show_children_keys(std::map<std::string,FpGrowth::TreeNode*>& children){
+    for(auto item=children.begin();item!=children.end();item++){
+        std::cout << item->first << " ";
+    }
+    std::cout << std::endl;
+}
 FpGrowth::TreeNode* FpGrowth::InitTreeNode(std::string node_name, TreeNode* parent, uint32_t node_count) {
     TreeNode* node = new TreeNode;
     node->node_name = node_name;
@@ -27,12 +43,12 @@ FpGrowth::HeadNode* FpGrowth::InitHeadNode(std::string node_name, uint32_t node_
 
 void FpGrowth::UpdateHeadTable(std::map<std::string, HeadNode*>& head_table, std::list<std::string>& trans,
                                uint32_t count) {
-    for (auto trans_item = trans.begin(); trans_item != trans.end(); trans_item++) {
-        if (head_table.find(*trans_item) == head_table.end()) {
-            HeadNode* head_node = InitHeadNode(*trans_item, count);
-            head_table.insert(std::pair<std::string, HeadNode*>(*trans_item, head_node));
+    for (auto tran = trans.begin(); tran != trans.end(); tran++) {
+        if (head_table.find(*tran)!=head_table.end()) {
+            (head_table.at(*tran)->node_count) += count;
         } else {
-            (head_table.at(*trans_item)->node_count) += count;
+            HeadNode* head_node = InitHeadNode(*tran, count);
+            head_table.insert(std::pair<std::string, HeadNode*>(*tran, head_node));
         }
     }
 }
@@ -90,25 +106,37 @@ std::list<std::string> FpGrowth::SortSingleData(std::map<std::string, uint32_t>&
     for (size_t i = 0; i < temp_vector.size(); i++) {
         sorted_trans.emplace_back(rank_2_item.at(temp_vector[i]));
     }
-    return trans;
+    return sorted_trans;
+}
+
+void FpGrowth::UpdateHeadTableLink(HeadNode* head_node,TreeNode* tree_node){
+    if((head_node->next)==nullptr){
+        head_node->next=tree_node;
+    }else{
+        TreeNode* temp_node=(head_node->next);
+        while((temp_node->next)!=nullptr){
+            temp_node=temp_node->next;
+        }
+        temp_node->next=tree_node;
+    }
 }
 
 void FpGrowth::UpdateFpTree(std::map<std::string, HeadNode*>& head_table, std::list<std::string>& sorted_trans,
                             TreeNode* fp_tree, uint32_t count) {
     for (auto tran = sorted_trans.begin(); tran != sorted_trans.end(); tran++) {
-        std::map<std::string, TreeNode*>& children = fp_tree->children;
-        // if the item set found in fp_tree,add the count
+        std::map<std::string, TreeNode*>& children = (fp_tree->children);
+        // show_children_keys(children);
         if (children.find(*tran) != children.end()) {
-            (children.at(*tran)) += count;
+            (children.at(*tran)->node_count) += count;
         } else {
             // create a new TreeNode
-            TreeNode* new_ndoe = InitTreeNode(*tran, fp_tree, count);
-            fp_tree->children.insert(std::pair<std::string, TreeNode*>(*tran, new_ndoe));
+            TreeNode* new_node = InitTreeNode(*tran, fp_tree, count);
             // update head_table
-            UpdateHeadTableLink(head_table.at(*tran), new_ndoe);
+            UpdateHeadTableLink(head_table.at(*tran), new_node);
+            children.insert(std::pair<std::string,TreeNode*>(*tran,new_node));
         }
-        // update fp_tree ptr
-        fp_tree = (fp_tree->children).at(*tran);
+        // update fp_tree ptr 
+        fp_tree = children.at(*tran);
     }
 }
 
@@ -143,19 +171,25 @@ void FpGrowth::FindPrefixPath(HeadNode* head_node, std::list<std::list<std::stri
                               std::list<uint32_t>& leaf_counts) {
     TreeNode* parent_node;
     TreeNode* leaf_node = head_node->next;
-    uint32_t count = leaf_node->node_count;
+    uint32_t count;
     while (leaf_node != nullptr) {
         // exlude self
-        parent_node = leaf_node->parent->next;
+        parent_node = leaf_node->parent;
+        if ((parent_node->node_name)==ROOT_NAME){
+            leaf_node=leaf_node->next;
+            continue;
+        }
+        count=leaf_node->node_count;
         std::list<std::string> prefix_path;
-        while (parent_node != nullptr) {
+        while ((parent_node->node_name)!=ROOT_NAME) {
             prefix_path.emplace_back(parent_node->node_name);
-            parent_node = parent_node->next;
+            parent_node = parent_node->parent;
         }
         prefix_paths.emplace_back(prefix_path);
         leaf_counts.emplace_back(count);
         leaf_node = leaf_node->next;
     }
+    // std::cout << "find_prefix_path core" << std::endl;
 }
 
 void FpGrowth::FreeFpTree(TreeNode* fp_tree) {
@@ -176,12 +210,16 @@ void FpGrowth::FreeHeadTable(std::map<std::string, HeadNode*> head_table) {
 
 // condition if (fp_tree->node_name)==ROOT_NAME,break
 
-void FpGrowth::RecurrentCreateFpTree(std::map<std::string, HeadNode*>& head_table, TreeNode* fp_tree,
+void FpGrowth::RecurrentCreateFpTree(std::map<std::string, HeadNode*> head_table, TreeNode* fp_tree,
                                      std::list<std::set<std::string>>& freq_itemset, std::set<std::string> prefix) {
     auto item_2_rank = ItemToRank(head_table);
     auto rank_2_item = RankToItem(item_2_rank);
-    size_t head_size = rank_2_item.size();
-    for (size_t i = head_size - 1; i >= 0; i--) {
+    for(auto item=head_table.begin();item!=head_table.end();item++){
+        std::cout << item->first << "->" << item->second->node_count << std::endl;
+    }
+    uint32_t head_size = rank_2_item.size();
+    prefix.clear();
+    for (uint32_t i = head_size - 1; i >= 0; --i) {
         HeadNode* head_node = head_table.at(rank_2_item.at(i));
         prefix.insert(head_node->node_name);
         freq_itemset.emplace_back(prefix);
@@ -190,16 +228,16 @@ void FpGrowth::RecurrentCreateFpTree(std::map<std::string, HeadNode*>& head_tabl
         FindPrefixPath(head_node, prefix_paths, leaf_counts);
         std::map<std::string, HeadNode*> sub_head_table;
         auto sub_fp_tree = CreateFpTree(prefix_paths, leaf_counts, sub_head_table);
-        if (sub_head_table.size() > 0) {
-            LOG(INFO) << "construct sub fp_tree...";
+        if (sub_head_table.size()>0) {
             RecurrentCreateFpTree(sub_head_table, sub_fp_tree, freq_itemset, prefix);
+        }else{
+            break;
         }
-
         // finished
-        LOG(INFO) << "free fp tree...";
-        FreeFpTree(fp_tree);
-        LOG(INFO) << "free head_table...";
-        FreeHeadTable(head_table);
+        // LOG(INFO) << "free fp tree...";
+        // FreeFpTree(fp_tree);
+        // LOG(INFO) << "free head_table...";
+        // FreeHeadTable(head_table);
     }
 }
 
@@ -210,13 +248,16 @@ std::list<std::set<std::string>> FpGrowth::Run(std::list<std::list<std::string>>
         UpdateHeadTable(head_table, *trans, 1);
     }
     head_table = FilterHeadTable(head_table);
+    for(auto item=head_table.begin();item!=head_table.end();item++){
+        std::cout << item->first << "->" << item->second->node_count << std::endl;
+    }
     auto item_2_rank = ItemToRank(head_table);
     auto rank_2_item = RankToItem(item_2_rank);
     for (auto trans = trans_data.begin(); trans != trans_data.end(); trans++) {
         auto sorted_trans = SortSingleData(item_2_rank, rank_2_item, *trans);
         UpdateFpTree(head_table, sorted_trans, fp_tree, 1);
     }
-
+    std::cout << "..............." << std::endl;
     std::set<std::string> prefix;
     std::list<std::set<std::string>> freq_itemset;
     RecurrentCreateFpTree(head_table, fp_tree, freq_itemset, prefix);
@@ -224,24 +265,27 @@ std::list<std::set<std::string>> FpGrowth::Run(std::list<std::list<std::string>>
 }
 
 FpGrowth::~FpGrowth(){
-    LOG(INFO) << "stop logging...";
-    google::ShutdownGoogleLogging();  
+    // LOG(INFO) << "stop logging...";
+    // google::ShutdownGoogleLogging();  
 }
 
 
 int main(){
     std::list<std::list<std::string>> trans_data={
-        {"A","B","C","E","F","O"},
-        {"A","C","G"},
-        {"E","I"},
-        {"A","C","D","E","G"},
-        {"A","C","E","G","L"},
-        {"E","J"},
-        {"A","B","C","E","F","P"},
-        {"A","C","D"},
-        {"A","C","E","G","M"},
-        {"A","C","E","G","N"}
+        {"r", "z", "h", "j", "p"},
+        {"z", "y", "x", "w", "v", "u", "t", "s"},
+        {"z"},
+        {"r", "x", "n", "o", "s"},
+        {"y", "r", "x", "z", "q", "t", "p"},
+        {"y", "z", "x", "e", "q", "s", "t", "m"}
     };
     FpGrowth* fp=new FpGrowth(3,"root");
     auto freq_itemset=fp->Run(trans_data);
+    for(auto itemset=freq_itemset.begin();itemset!=freq_itemset.end();itemset++){
+        std::cout << "{ ";
+        for(auto item=(*itemset).begin();item!=(*itemset).end();item++){
+            std::cout << *item << " ";
+        }
+        std::cout << "}" << std::endl;
+    }
 }

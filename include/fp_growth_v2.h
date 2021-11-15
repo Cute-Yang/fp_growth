@@ -7,24 +7,24 @@
 
 class FpGrowth {
 public:
-    typedef struct TreeNode {
+    typedef struct TNode {
         std::string node_name;
         uint32_t node_count;
-        struct TreeNode* parent;
-        struct TreeNode* next;
-        std::map<std::string, struct TreeNode*> children;
+        struct TNode* parent;
+        struct TNode* next;
+        std::map<std::string, struct TNode*> children;
     } TreeNode;
 
-    typedef struct HeadNode {
+    typedef struct HNode {
         std::string node_name;
         uint32_t node_count;
         TreeNode* next;
     } HeadNode;
 
     FpGrowth(uint32_t min_support_value,std::string root_name_value="root") : min_support(min_support_value),ROOT_NAME(root_name_value) {
-        FLAGS_logtostderr=true;
-        FLAGS_logbufsecs=0;
-        google::InitGoogleLogging("fp_growth");
+        // FLAGS_logtostderr = true;
+        // FLAGS_logbufsecs = 0;
+        // google::InitGoogleLogging("fp_growth");
     }
 
     ~FpGrowth();
@@ -49,7 +49,7 @@ public:
     void FindPrefixPath(HeadNode*, std::list<std::list<std::string>>&, std::list<uint32_t>&);
 
     TreeNode* CreateFpTree(std::list<std::list<std::string>>&, std::list<uint32_t>&, std::map<std::string, HeadNode*>&);
-    void RecurrentCreateFpTree(std::map<std::string, HeadNode*>&, TreeNode*, std::list<std::set<std::string>>&,
+    void RecurrentCreateFpTree(std::map<std::string, HeadNode*>, TreeNode*, std::list<std::set<std::string>>&,
                                std::set<std::string> prefix);
     std::list<std::set<std::string>> Run(std::list<std::list<std::string>>&);
 
@@ -60,3 +60,5 @@ private:
     uint32_t min_support;
     std::string ROOT_NAME = "root";
 };
+
+
