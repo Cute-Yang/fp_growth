@@ -3,15 +3,17 @@ FP_GROWTH_INCLUDE=$(CURRENT_DIR)/include
 BUILD_DIR=$(CURRENT_DIR)/build
 BINARY_DIR=$(CURRENT_DIR)/bin
 SRC_DIR=$(CURRENT_DIR)/src
-BINARY_NAME:=fp_growth
+BINARY_NAME:=fp_growth_v2
+GLOG_LIB:=/usr/local/lib
+GLOG_NAME:=glog
 CXX:=g++
-CXXFLAG=-I$(FP_GROWTH_INCLUDE)
+CXXFLAG=-I$(FP_GROWTH_INCLUDE) -L$(GLOG_LIB) -l$(GLOG_NAME)
 
-$(BINARY_DIR)/$(BINARY_NAME): $(BUILD_DIR)/fp_growth.o
-	$(CXX) -o $(BINARY_DIR)/$(BINARY_NAME) $(BUILD_DIR)/fp_growth.o
+$(BINARY_DIR)/$(BINARY_NAME): $(BUILD_DIR)/fp_growth_v2.o
+	$(CXX) -o $(BINARY_DIR)/$(BINARY_NAME) $(CXXFLAG) $(BUILD_DIR)/fp_growth_v2.o
 
-$(BUILD_DIR)/fp_growth.o: $(SRC_DIR)/fp_growth.cc
-	$(CXX) -c $(CXXFLAG) $(SRC_DIR)/fp_growth.cc -o $(BUILD_DIR)/fp_growth.o
+$(BUILD_DIR)/fp_growth_v2.o: $(SRC_DIR)/fp_growth_v2.cc
+	$(CXX) -c $(CXXFLAG) $(SRC_DIR)/fp_growth_v2.cc -o $(BUILD_DIR)/fp_growth_v2.o
 
 
 clean: 
