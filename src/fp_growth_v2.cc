@@ -8,6 +8,12 @@
 #include <string>
 #include <vector>
 
+void show_set(std::set<std::string>& data){
+    for (auto item=data.begin();item!=data.end();item++){
+        std::cout << *item <<" ";
+    }
+    std::cout << std::endl;
+}
 
 void show_list(std::list<std::string>& data){
     for (auto item=data.begin();item!=data.end();item++){
@@ -214,14 +220,14 @@ void FpGrowth::RecurrentCreateFpTree(std::map<std::string, HeadNode*> head_table
                                      std::list<std::set<std::string>>& freq_itemset, std::set<std::string> prefix) {
     auto item_2_rank = ItemToRank(head_table);
     auto rank_2_item = RankToItem(item_2_rank);
-    for(auto item=head_table.begin();item!=head_table.end();item++){
-        std::cout << item->first << "->" << item->second->node_count << std::endl;
-    }
     uint32_t head_size = rank_2_item.size();
-    prefix.clear();
     for (uint32_t i = head_size - 1; i >= 0; --i) {
         HeadNode* head_node = head_table.at(rank_2_item.at(i));
+        std::cout << head_node->node_name << std::endl;
+        show_set(prefix);
         prefix.insert(head_node->node_name);
+        show_set(prefix);
+        std::cout << "-----------------" << std::endl;
         freq_itemset.emplace_back(prefix);
         std::list<std::list<std::string>> prefix_paths;
         std::list<uint32_t> leaf_counts;
@@ -231,7 +237,9 @@ void FpGrowth::RecurrentCreateFpTree(std::map<std::string, HeadNode*> head_table
         if (sub_head_table.size()>0) {
             RecurrentCreateFpTree(sub_head_table, sub_fp_tree, freq_itemset, prefix);
         }else{
-            break;
+            freq_itemset.emplace_back(std::set<std::string>({"---------------"}));
+            prefix.clear();
+            return;
         }
         // finished
         // LOG(INFO) << "free fp tree...";
