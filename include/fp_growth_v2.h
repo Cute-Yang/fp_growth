@@ -2,6 +2,7 @@
 #include <list>
 #include <string>
 #include <map>
+#include <set>
 
 class FpGrowth{
     public:
@@ -36,11 +37,19 @@ class FpGrowth{
         
         std::list<std::string> SortSingleData(std::map<std::string,uint32_t>&,std::map<uint32_t,std::string>&,std::list<std::string>&);
         
-        void UpdateFpTree(std::map<std::string,HeadNode*>,std::list<std::string>,TreeNode*);
+
+        void UpdateFpTree(std::map<std::string,HeadNode*>&,std::list<std::string>&,TreeNode*,uint32_t);
 
         void UpdateHeadTableLink(HeadNode*,TreeNode*);
+        // void CreateFpTree(HeadNode*,TreeNode*);
         
+        void FindPrefixPath(HeadNode*,std::list<std::list<std::string>>&,std::list<uint32_t>&);
+
+        TreeNode* CreateFpTree(std::list<std::list<std::string>>&,std::list<uint32_t>&,std::map<std::string,HeadNode*>&);
+        void RecurrentCreateFpTree(std::map<std::string,HeadNode*>&,TreeNode*,std::list<std::set<std::string>>&,std::set<std::string> prefix);
+        std::list<std::set<std::string>> Run(std::list<std::list<std::string>>&);
+
     private:
         uint32_t min_support;
-        
+        std::string ROOT_NAME="root";
 };
