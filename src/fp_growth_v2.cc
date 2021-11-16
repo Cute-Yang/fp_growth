@@ -6,27 +6,12 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <fstream>
+#include <gflags/gflags.h>
 
-// void show_set(std::set<std::string>& data) {
-//     for (auto item = data.begin(); item != data.end(); item++) {
-//         std::cout << *item << " ";
-//     }
-//     std::cout << std::endl;
-// }
-
-// void show_list(std::list<std::string>& data) {
-//     for (auto item = data.begin(); item != data.end(); item++) {
-//         std::cout << *item << " ";
-//     }
-//     std::cout << std::endl;
-// }
-
-// void show_children_keys(std::map<std::string, FpGrowth::TreeNode*>& children) {
-//     for (auto item = children.begin(); item != children.end(); item++) {
-//         std::cout << item->first << " ";
-//     }
-//     std::cout << std::endl;
-// }
+DEFINE_string(file_path, "data/sample.txt", "the source file path");
+DEFINE_uint32(min_support, 3, "the min_support degree");
+DEFINE_string(root_name, "root", "the name of root node");
 
 FpGrowth::TreeNode* FpGrowth::InitTreeNode(std::string node_name, TreeNode* parent, uint32_t node_count) {
     TreeNode* node = new TreeNode;
@@ -134,12 +119,11 @@ void FpGrowth::UpdateFpTree(std::map<std::string, HeadNode*>& head_table, const 
                             TreeNode* fp_tree, uint32_t count) {
     for (auto tran = sorted_trans.begin(); tran != sorted_trans.end(); tran++) {
         std::map<std::string, TreeNode*>& children = (fp_tree->children);
-        // show_children_keys(children);
         if (children.find(*tran) != children.end()) {
             (children.at(*tran)->node_count) += count;
         } else {
             // create a new TreeNode
-            LOG(INFO) << "create a new tree node for tran->" << *tran;
+            LOG(INFO) << "create a new tree node for tran->" << *tran << "->" << count ;
             TreeNode* new_node = InitTreeNode(*tran, fp_tree, count);
             // update head_table
             UpdateHeadTableLink(head_table.at(*tran), new_node);
@@ -172,6 +156,7 @@ void FpGrowth::CreateFpTree(std::list<std::list<std::string>>& prefix_paths, std
     for (auto prefix_path = prefix_paths.begin(); prefix_path != prefix_paths.end(); prefix_path++) {
         auto sorted_trans = SortSingleData(item_2_rank, rank_2_item, *prefix_path);
         UpdateFpTree(head_table, sorted_trans, fp_tree, *count_ref);
+        count_ref++;
     }
 }
 
@@ -197,7 +182,6 @@ void FpGrowth::FindPrefixPath(HeadNode* head_node, std::list<std::list<std::stri
         leaf_counts.emplace_back(count);
         leaf_node = leaf_node->next;
     }
-    // std::cout << "find_prefix_path core" << std::endl;
 }
 
 void FpGrowth::FreeFpTree(TreeNode* fp_tree) {
@@ -242,16 +226,33 @@ void FpGrowth::RecurrentCreateFpTree(std::map<std::string, HeadNode*>& head_tabl
             RecurrentCreateFpTree(sub_head_table, sub_fp_tree, freq_itemset, new_prefix);
         } else {
             // means that we arrive the last item of head_table,now can free FpTree and HeadTable
-            freq_itemset.emplace_back(std::set<std::string>({"--->"}));
             FreeFpTree(fp_tree);
             FreeHeadTable(head_table);
 
-            // but the sub fp tree is has a root node alloc on heap
+            // // but the sub fp tree is has a root node alloc on heap
             FreeFpTree(sub_fp_tree);
             return;
         }
     }
 }
+
+std::list<std::list<std::string>> FpGrowth::FilterFreqSet(std::list<std::set<std::string>>& freq_itemset,uint32_t keep_size){
+    if(keep_size<=0){
+        throw std::runtime_error("param keep_size should >0");
+    }
+    std::list<std::list<std::string>> filtered_freq_itemset;
+    for(auto freq_item=freq_itemset.begin();freq_item!=freq_itemset.end();freq_item++){
+        if(freq_item->size()>=keep_size){
+            std::list<std::string> append_item;
+            for(auto item=freq_item->begin();item!=freq_item->end();item++){
+                append_item.emplace_back(*item);
+            }
+            filtered_freq_itemset.emplace_back(append_item);
+        }
+    }
+    return filtered_freq_itemset;
+}
+
 
 std::list<std::set<std::string>> FpGrowth::Run(const std::list<std::list<std::string>>& trans_data) {
     TreeNode* fp_tree = InitTreeNode(ROOT_NAME, nullptr, 1);
@@ -259,9 +260,11 @@ std::list<std::set<std::string>> FpGrowth::Run(const std::list<std::list<std::st
     for (auto trans = trans_data.begin(); trans != trans_data.end(); trans++) {
         UpdateHeadTable(head_table, *trans, 1);
     }
+    std::list<std::set<std::string>> freq_itemset;
     head_table = FilterHeadTable(head_table);
-    for(auto item=head_table.begin();item!=head_table.end();item++){
-        std::cout << item->first << "->" << item->second->node_count << std::endl;
+    if(head_table.size()==0){
+        LOG(WARNING) << "we got 0 head node at first stage,will return empty result,check the param min_support";
+        return freq_itemset;
     }
     auto item_2_rank = ItemToRank(head_table);
     auto rank_2_item = RankToItem(item_2_rank);
@@ -270,12 +273,38 @@ std::list<std::set<std::string>> FpGrowth::Run(const std::list<std::list<std::st
         UpdateFpTree(head_table, sorted_trans, fp_tree, 1);
     }
     std::set<std::string> prefix;
-    std::list<std::set<std::string>> freq_itemset;
     RecurrentCreateFpTree(head_table, fp_tree, freq_itemset, prefix);
     return freq_itemset;
 }
 
-int main() {
+std::list<std::list<std::string>> FpGrowth::ReadDataFromFile(const std::string& file_path,char split_char){
+    std::ifstream f_ptr(file_path);
+    // if(!f_ptr.is_open()){
+    //     throw std::runtime_error("can not open file");
+    // }
+    std::string line;
+    std::list<std::list<std::string>> trans_data;
+    uint32_t rows=0;
+    while(std::getline(f_ptr,line)){
+        std::stringstream str_stream(line);
+        std::string temp_str;
+        std::list<std::string> trans;
+        while(std::getline(str_stream,temp_str,split_char)){
+            trans.emplace_back(temp_str);
+        }
+        trans_data.emplace_back(trans);
+        ++rows;
+    }
+    LOG(INFO) << "Read " << rows << " data from file->" << file_path << std::endl;
+    //close ptr
+    f_ptr.close();
+    return trans_data;
+}
+
+int main(int argc,char** argv) {
+    //parse cmd flag
+    google::SetUsageMessage("Usage: [Options]");
+    google::ParseCommandLineFlags(&argc,&argv,true);
     // test case of offical
     // std::list<std::list<std::string>> trans_data = {
     //     {"r", "z", "h", "j", "p"}, {"z", "y", "x", "w", "v", "u", "t", "s"}, {"z"},
@@ -283,24 +312,33 @@ int main() {
     //     "m"}};
 
     // test case of liujianping
-    std::list<std::list<std::string>> trans_data = {{"E", "J"},
-                                                    {"A", "B", "C", "E", "F"},
-                                                    {"A", "C", "G"},
-                                                    {"E", "I"},
-                                                    {"A", "C", "D", "E", "G"},
-                                                    {"A", "C", "E", "G", "L"},
-                                                    {"A", "B", "C", "E", "F", "P"},
-                                                    {"A", "C", "D"},
-                                                    {"A", "C", "E", "G", "M"},
-                                                    {"A", "C", "E", "G", "N"}};
-    FpGrowth* fp = new FpGrowth(3, "root");
+    // std::list<std::list<std::string>> trans_data = {{"E", "J"},
+    //                                                 {"A", "B", "C", "E", "F"},
+    //                                                 {"A", "C", "G"},
+    //                                                 {"E", "I"},
+    //                                                 {"A", "C", "D", "E", "G"},
+    //                                                 {"A", "C", "E", "G", "L"},
+    //                                                 {"A", "B", "C", "E", "F", "P"},
+    //                                                 {"A", "C", "D"},
+    //                                                 {"A", "C", "E", "G", "M"},
+    //                                                 {"A", "C", "E", "G", "N"}};
+    // std::string file_path = FLAGS_file_path;
+    // uint32_t min_support = FLAGS_min_support;
+    // std::string root_name = FLAGS_root_name;
+    
+    FpGrowth* fp = new FpGrowth(FLAGS_min_support,FLAGS_root_name);
     // run
+    auto trans_data=fp->ReadDataFromFile(FLAGS_file_path,',');
     auto freq_itemset = fp->Run(trans_data);
-    for (auto itemset = freq_itemset.begin(); itemset != freq_itemset.end(); itemset++) {
+    auto filtered_freq_itemset=fp->FilterFreqSet(freq_itemset,3);
+    
+    //display result
+    for (auto itemset = filtered_freq_itemset.begin(); itemset != filtered_freq_itemset.end(); itemset++) {
         std::cout << "{ ";
         for (auto item = (*itemset).begin(); item != (*itemset).end(); item++) {
             std::cout << *item << " ";
         }
         std::cout << "}" << std::endl;
     }
+    delete fp;
 }

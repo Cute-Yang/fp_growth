@@ -7,7 +7,7 @@ BINARY_NAME:=fp_growth_v2
 GLOG_LIB:=/usr/local/lib
 GLOG_NAME:=glog
 CXX:=g++
-CXXFLAG=-I$(FP_GROWTH_INCLUDE) -L$(GLOG_LIB) -l$(GLOG_NAME) -std=c++11
+CXXFLAG=-I$(FP_GROWTH_INCLUDE) -L$(GLOG_LIB) -l$(GLOG_NAME) -lgflags -lpthread -std=c++11
 
 $(BINARY_DIR)/$(BINARY_NAME): $(BUILD_DIR)/fp_growth_v2.o
 	$(CXX) $(BUILD_DIR)/fp_growth_v2.o -o $(BINARY_DIR)/$(BINARY_NAME) $(CXXFLAG)

@@ -32,7 +32,7 @@ public:
     }
 
     ~FpGrowth() {
-        LOG(INFO) << "free the memory alloc by qqseg";
+        LOG(INFO) << "free the memory alloc by FpGrowth";
         // stop logger
         google::ShutdownGoogleLogging();
     }
@@ -65,6 +65,9 @@ public:
     void FreeFpTree(TreeNode*);
     void FreeHeadTable(std::map<std::string, HeadNode*>);
 
+    std::list<std::list<std::string>> FilterFreqSet(std::list<std::set<std::string>>&,uint32_t keep_size);
+
+    std::list<std::list<std::string>> ReadDataFromFile(const std::string&,char);
 private:
     uint32_t min_support;
     std::string ROOT_NAME = "root";
