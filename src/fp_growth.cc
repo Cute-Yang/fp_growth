@@ -169,7 +169,7 @@ void FpGrowth::FindPrefixPath(HeadNode* head_node, std::list<std::list<std::stri
                               std::list<uint32_t>& leaf_counts) {
     TreeNode* parent_node;
     TreeNode* leaf_node = head_node->next;
-    uint32_t count;
+    uint32_t count=0;
     while (leaf_node != nullptr) {
         // exlude self
         parent_node = leaf_node->parent;
@@ -182,6 +182,10 @@ void FpGrowth::FindPrefixPath(HeadNode* head_node, std::list<std::list<std::stri
         while ((parent_node->node_name) != ROOT_NAME) {
             prefix_path.emplace_back(parent_node->node_name);
             parent_node = parent_node->parent;
+        }
+        if (prefix_path.size()==0){
+            leaf_node=leaf_node->next;
+            continue;
         }
         prefix_paths.emplace_back(prefix_path);
         leaf_counts.emplace_back(count);
@@ -295,11 +299,15 @@ std::list<std::list<std::string>> FpGrowth::ReadDataFromFile(const std::string& 
     while (std::getline(f_ptr, line)) {
         std::stringstream str_stream(line);
         std::string temp_str;
-        std::list<std::string> trans;
+        std::set<std::string> trans;
         while (std::getline(str_stream, temp_str, split_char)) {
-            trans.emplace_back(temp_str);
+            trans.insert(temp_str);
         }
-        trans_data.emplace_back(trans);
+        std::list<std::string> list_trans;
+        for(auto tran=trans.begin();tran!=trans.end();tran++){
+            list_trans.emplace_back(std::move(*tran));
+        }
+        trans_data.emplace_back(list_trans);
         ++rows;
     }
     LOG(INFO) << "Read " << rows << " data from file->" << file_path << std::endl;
